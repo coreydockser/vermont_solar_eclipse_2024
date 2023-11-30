@@ -1,0 +1,335 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <!-- BEGIN TEMPLATE HEAD -->
+    <!-- Metadata -->
+    <title>Eclipse Map</title>
+
+    <!-- External -->
+    <script type="text/javascript" src="https://pym.nprapps.org/pym.v1.min.js"></script>
+
+    <!-- Fonts -->
+    <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet' type='text/css'>
+
+    <style>
+        /* Styled to match Grove  */
+
+        body {
+            font-family: "Poppins", "Helvetica Neue", "Helvetica", Helvetica, Arial, sans-serif;
+            letter-spacing: 0.08px;
+            word-spacing: 0.4px;
+            line-height: 1.5;
+        }
+    </style>
+
+    <!-- END TEMPLATE HEAD -->
+
+    <!-- BEGIN CUSTOM HEAD -->
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.1.0/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"
+        integrity="sha512-M7nHCiNUOwFt6Us3r8alutZLm9qMt4s9951uo8jqO4UwJ1hziseL6O3ndFyigx6+LREfZqnhHxYjKRJ8ZQ69DQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
+        integrity="sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+
+
+    <style>
+        .slidecontainer {
+            width: 100%;
+            display: flex;
+            align-items: center;
+
+        }
+
+        .slider {
+            width: 100%;
+            height: 10px;
+            appearance: none;
+            background: #004c42;
+            outline: none;
+            border-radius: 5px;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 30px;
+            height: 30px;
+            background: #04AA6D;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 25px;
+
+            height: 30px;
+
+            background: #04AA6D;
+
+            cursor: pointer;
+
+            border-radius: 50%;
+        }
+
+        .button {
+            background-color: #004c42;
+            color: #C5FFEC;
+            text-decoration: none;
+            border-style: inset;
+            border-width: 2px;
+            height: 30px;
+            width: 30px;
+            border-color: #00807F;
+            font-family: Poppins;
+        }
+
+        .button:hover {
+            border-color: #01a38e;
+            background-color: #00807F;
+        }
+
+        #leaflet {
+            margin: auto;
+            font-family: Poppins;
+            z-index: 0;
+        }
+
+
+
+
+        .clock {
+            line-height: 21px;
+
+            font-size: 22px;
+            padding: 5px;
+            background-color: #004c42;
+            color: #C5FFEC;
+            text-decoration: none;
+            border-style: outset;
+            border-color: #00807F;
+        }
+
+
+
+
+        .leaflet-control-attribution {
+            width: 50%
+        }
+    </style>
+
+    <!-- END CUSTOM HEAD -->
+
+</head>
+
+<body>
+    <!-- BEGIN CUSTOM BODY -->
+
+    <script>
+
+        async function createMap() {
+
+
+
+            const umbra_lo = await d3.json("umbra_lo.json")
+            const center = await d3.json("center.json")
+            const center_features = center.features
+            const umbra_features = umbra_lo.features
+            console.log(umbra_features)
+            console.log(center_features)
+
+
+
+            // starting time
+            var time = "3:24:20 PM"
+            var timesec = 69860
+            var state = "Pause"
+
+
+
+
+
+            const zoomLevel = document.getElementById("leaflet").offsetWidth > 500 ? 14 : 13
+
+            const map = L.map("leaflet", {
+                maxBounds: [[45.6827279959561, -74.60342861162103], [[42.13963625461821, -70.15557545763363]]],
+                minZoom: 8,
+                maxBoundsViscosity: 1
+            }).setView(
+                [44.47874914580646, -73.13696501739662
+                ],
+                9
+            );
+            L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+                attribution: `Data Source: <a href="https://svs.gsfc.nasa.gov/5073">NASA</a> | &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | <i>Corey Dockser / Vermont Public </i>`,
+
+            }).addTo(map);
+
+
+            L.svg({ clickable: true }).addTo(map)
+
+            // code from https://observablehq.com/@sfu-iat355/intro-to-leaflet-d3-interactivity
+            //Create selection using D3
+            const overlay = d3.select(map.getPanes().overlayPane)
+            const svg = overlay.select('svg').attr("pointer-events", "auto")
+            // create a group that is hidden during zooming
+            const g = svg.append('g').attr('class', 'leaflet-zoom-hide')
+
+            // Use Leaflets projection API for drawing svg path (creates a stream of projected points)
+            const projectPoint = function (x, y) {
+                const point = map.latLngToLayerPoint(new L.LatLng(y, x))
+                this.stream.point(point.x, point.y)
+            }
+
+            // Use d3's custom geo transform method to implement the above
+            const projection = d3.geoTransform({ point: projectPoint })
+            // creates geopath from projected points (SVG)
+            const pathCreator = d3.geoPath().projection(projection)
+
+            function updateUmbra(data) {
+                g.selectAll(".umbra")
+                    .data(data)
+                    .join("path")
+                    .attr("d", pathCreator)
+                    .attr("class", "umbra")
+                    .attr("fill-opacity", ".5")
+                    .attr("stroke", "black")
+                    
+
+                d3.select(".clock")
+                    .html(convertTime(timesec))
+
+                
+
+            }
+
+            var timer = d3.interval(function (e) {
+                if (state == "Play") {
+                    d3slider = d3.select(".slider")
+                    slidervalue = d3slider.property("valueAsNumber") + 10
+                    d3slider.property("value", slidervalue)
+                    updateUmbra(umbra_features.filter(d => d.properties["UTCSec"] == d3slider.property("value")))
+
+                    timesec = slidervalue
+
+
+
+                }
+            }, 250)
+
+
+            g.selectAll(".center")
+                    .data(center_features)
+                    .join("path")
+                    .attr("d", pathCreator)
+                    .attr("class", "center")
+                    .attr("fill", "none")
+                    .attr("stroke-width", 2)
+                    .attr("stroke", "black")
+                    
+
+
+
+            var slider = document.getElementById("timeslider")
+
+            function convertTime(seconds) {
+                // 3.6m is 6 hours in milleseconds, which is the offset during daylight savings time
+
+                eclipse_time = new Date(seconds * 1000 + 3600000)
+                const hours = eclipse_time.getHours() % 12
+                var minutes = eclipse_time.getMinutes()
+                if (minutes < 10) {
+                    minutes = "" + 0 + minutes
+                }
+                var seconds = eclipse_time.getSeconds()
+                if (seconds < 10) {
+                    seconds = "" + 0 + seconds
+                }
+
+                time = hours + ":" + minutes + ":" + seconds + " PM"
+                return time;
+            }
+
+            slider.oninput = function () {
+                timesec = this.value
+
+
+
+                updateUmbra(umbra_features.filter(d => d.properties["UTCSec"] == this.value))
+            }
+
+            var button = d3.select(".button")
+            console.log(button)
+
+            button.on("click", function () {
+                if (state == "Pause") {
+                    button.html(`<i id="pauseplay" class="fa fa-pause"></i>`)
+                    state = "Play"
+                } else {
+                    button.html(`<i id="pauseplay" class="fa fa-play"></i>`)
+                    state = "Pause"
+
+                }
+                console.log(state)
+            })
+
+
+            updateUmbra(umbra_features.filter(d => d.properties["UTCSec"] == timesec))
+
+            var umbra = g.selectAll(".umbra")
+
+            // Function to place svg based on zoom
+            const onZoom = () => umbra.attr('d', pathCreator)
+            // initialize positioning
+            onZoom()
+            // reset whenever map is moved
+            map.on('zoomend', onZoom)
+
+            var clock = L.control({ position: "topright" })
+
+            clock.onAdd = function (map) {
+                var div = L.DomUtil.create('div', 'clock')
+                div.innerHTML = convertTime(timesec)
+                return div
+            }
+
+            clock.addTo(map)
+
+
+
+
+
+        }
+        createMap()
+    </script>
+    <div class="slidecontainer">
+        <button class="button" id="playbutton"><i id="pauseplay" class="fa fa-play"></i>
+        </button><input value="69860" type="range" min="69860" max="70380" step="10" class="slider" id="timeslider">
+    </div>
+    <div id="leaflet" style="min-height: 500px; max-height: 800px; width: 100%"></div>
+    <div style="font-size: 14px; color:rgb(118, 118, 118)">
+        Move the slider or press the play button to see where the total eclipse will be at a given time. </div>
+
+
+
+
+
+
+
+    <script>
+        window.onload = function () {
+            pymChild = new pym.Child({});
+            pym.Child({ polling: 500 });
+        };
+    </script>
+
+
+</body>
+
+</html>
