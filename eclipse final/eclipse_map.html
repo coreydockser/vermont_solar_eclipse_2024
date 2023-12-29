@@ -1,0 +1,453 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <!-- BEGIN TEMPLATE HEAD -->
+    <!-- Metadata -->
+    <title>Eclipse Map</title>
+
+    <!-- External -->
+    <script type="text/javascript" src="https://pym.nprapps.org/pym.v1.min.js"></script>
+
+    <!-- Fonts -->
+    <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet' type='text/css'>
+
+    <style>
+        /* Styled to match Grove  */
+
+        body {
+            font-family: "Poppins", "Helvetica Neue", "Helvetica", Helvetica, Arial, sans-serif;
+            letter-spacing: 0.08px;
+            word-spacing: 0.4px;
+            line-height: 1.5;
+        }
+    </style>
+
+    <!-- END TEMPLATE HEAD -->
+
+    <!-- BEGIN CUSTOM HEAD -->
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"
+        integrity="sha512-M7nHCiNUOwFt6Us3r8alutZLm9qMt4s9951uo8jqO4UwJ1hziseL6O3ndFyigx6+LREfZqnhHxYjKRJ8ZQ69DQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"
+        integrity="sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script src="https://kit.fontawesome.com/c133de535f.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-search@4.0.0/dist/leaflet-search.src.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/leaflet-search@4.0.0/dist/leaflet-search.src.min.css" rel="stylesheet">
+
+
+    <style>
+
+        :root {
+            --main-text-color: #ffffff;
+            --main-button-color: #ffe641;
+            --main-button-hover-color: #fdef90;
+            --main-background-color: #1e1d1d;
+
+
+        }
+
+        #logo_img {
+            height:50px;
+            filter: drop-shadow(1px 1px 3px)
+            
+        }
+
+        
+        .slidecontainer {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            margin-bottom: 3px;
+
+        }
+
+        .slider {
+            width: 100%;
+            height: 10px;
+            opacity: .7;
+            appearance: none;
+            background: var(--main-background-color);
+            outline: none;
+            border-radius: 5px;
+        }
+
+        .slider:hover {
+            opacity: 1
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            background: var(--main-button-color);
+            cursor: pointer;
+            border-radius: 50%;
+         
+        }
+
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 20px;
+            background: var(--main-button-color);
+            cursor: pointer;
+            border-radius: 50%;
+            border-style: solid;
+            border-width: 5px;
+        }
+
+        .button {
+            background-color: #1E1C1C;
+            color: var(--main-button-color);
+            text-decoration: none;
+            border-style: inset;
+            border-width: 2px;
+            height: 30px;
+            width: 30px;
+            opacity: 1;
+
+        }
+
+        .button:hover {
+
+            opacity: .7;
+        }
+
+        #leaflet {
+            margin: auto;
+            font-family: Poppins;
+            z-index: 0;
+        }
+
+       
+
+
+
+        .clock {
+            line-height: 21px;
+
+            font-size: 22px;
+            padding: 5px;
+            background-color: #1E1C1C;
+            color: var(--main-button-color);
+            text-decoration: none;
+            cursor: default;
+            border-style: outset;
+            border-color:#1e1d1d;
+        }
+
+
+
+
+        .leaflet-control-attribution {
+            font-size:2vw;
+            max-width: 50%;
+        }
+
+        .umbra {
+            filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.5));
+            stroke: none;
+            fill-opacity: .5;
+
+        }
+    </style>
+
+    <!-- END CUSTOM HEAD -->
+
+</head>
+
+<body>
+    <!-- BEGIN CUSTOM BODY -->
+
+    <script>
+
+        async function createMap() {
+
+
+            const purple = "#af2dcb"
+            const light_purple = "#dcacf3"
+            const umbra_lo = await d3.json("umbra_lo.json")
+            const duration = await d3.json("duration.json")
+            const towns = await d3.json("vt_towns_geo.json")
+            const towns_features = towns.features
+            const duration_features = duration.features
+            const umbra_features = umbra_lo.features
+        
+            function titleCase(str) {
+                str = str.toLowerCase().split(' ');
+                for (var i = 0; i < str.length; i++) {
+                    str[i] = str[i].charAt(0).toUpperCase() + str[i].slice(1);
+                }
+                return str.join(' ');
+            }
+
+            towns_features.forEach((d) => d.properties.name = titleCase(d.properties.TOWNNAME))
+            
+
+
+            
+
+            
+
+            // starting time
+            var time = "3:24:20 PM"
+            var timesec = 69860
+            var state = "Pause"
+
+
+
+
+
+
+
+            const map = L.map("leaflet", {
+                maxBounds: [[45.6827279959561, -74.60342861162103], [[42.13963625461821, -70.15557545763363]]],
+                minZoom: 8,
+                maxBoundsViscosity: 1
+            }).setView(
+                [44.47874914580646, -73.13696501739662
+                ],
+                9
+            );
+            L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
+                attribution: `Data Source: <a href="https://svs.gsfc.nasa.gov/5073">NASA</a> | &copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> | <i>Corey Dockser / Vermont Public </i>`,
+            }).addTo(map);
+
+            function secondsToMinutes(seconds) {
+                let minutes = Math.floor(seconds / 60)
+                let extraSeconds = seconds % 60
+                return extraSeconds > 0 ? `${minutes} minutes, ${extraSeconds} seconds` : `${minutes} minutes`
+            }
+
+            function onEachFeature(feature, layer) {
+                layer.bindPopup(`Total Eclipse Duration: ${secondsToMinutes(feature.properties.Duration)}`)
+            }
+
+
+            L.geoJSON(duration_features.reverse(), {
+                onEachFeature: onEachFeature,
+                style: function (geoJsonFeature) {
+                    return {
+                        fillColor: "black",
+                        fillOpacity: .15,
+                        stroke: false,
+                    }
+                }
+            }).addTo(map)
+
+            var town_layer = L.geoJSON(towns_features, {
+                style: function(geoJsonFeature) {
+                    return {
+                        opacity:0,
+                        color: purple,
+                        fillColor: light_purple,
+                        fillOpacity: 0,
+                        weight: 3
+                        
+                    }
+                },
+                interactive: false
+            }).addTo(map)
+
+
+            var search_control = new L.Control.Search({ layer: town_layer, propertyName: 'name', marker: false, zoom: 12, textErr: 'Location not found. Try entering the name of a town.'})
+            map.addControl(search_control);
+
+            search_control.on('search:locationfound', function (e) {
+                e.layer.setStyle({
+                    // blah blah blah
+                    
+                    opacity: 1,
+                    fillOpacity: .1
+                }) 
+            }).on('search:collapsed', function (e) {
+                    town_layer.eachLayer(function(layer) {	//restore feature color
+			town_layer.resetStyle(layer);
+            
+                    })
+                })
+               
+            
+
+
+
+
+
+            L.svg({ clickable: true }).addTo(map)
+
+            // code from https://observablehq.com/@sfu-iat355/intro-to-leaflet-d3-interactivity
+            //Create selection using D3
+            const overlay = d3.select(map.getPanes().overlayPane)
+            const svg = overlay.select('svg').attr("pointer-events", "auto")
+            // create a group that is hidden during zooming
+            const g = svg.append('g').attr('class', 'leaflet-zoom-hide')
+
+            // Use Leaflets projection API for drawing svg path (creates a stream of projected points)
+            const projectPoint = function (x, y) {
+                const point = map.latLngToLayerPoint(new L.LatLng(y, x))
+                this.stream.point(point.x, point.y)
+            }
+
+            // Use d3's custom geo transform method to implement the above
+            const projection = d3.geoTransform({ point: projectPoint })
+            // creates geopath from projected points (SVG)
+            const pathCreator = d3.geoPath().projection(projection)
+
+            function updateUmbra(data) {
+                g.selectAll(".umbra")
+                    .data(data)
+                    .join("path")
+                    .attr("d", pathCreator)
+                    .attr("class", "umbra")
+
+
+
+
+                d3.select(".clock")
+                    .html(convertTime(timesec))
+
+
+
+            }
+
+            var timer = d3.interval(function (e) {
+                if (state == "Play") {
+                    d3slider = d3.select(".slider")
+                    d3sliderValue = d3slider.property("valueAsNumber")
+                   
+                    temp = (d3sliderValue + 10) % 70390
+                    slidervalue = (temp == 0 ? 69860 : temp)
+                 
+                    d3slider.property("value", slidervalue)
+                    updateUmbra(umbra_features.filter(d => d.properties["UTCSec"] == d3slider.property("value")))
+
+                    timesec = slidervalue
+
+
+
+                }
+            }, 250)
+
+
+
+
+
+
+
+            var slider = document.getElementById("timeslider")
+
+            function convertTime(seconds) {
+                // 3.6m is 6 hours in milleseconds, which is the offset during daylight savings time
+
+                eclipse_time = new Date(seconds * 1000 + 3600000)
+                const hours = eclipse_time.getHours() % 12
+                var minutes = eclipse_time.getMinutes()
+                if (minutes < 10) {
+                    minutes = "" + 0 + minutes
+                }
+                var seconds = eclipse_time.getSeconds()
+                if (seconds < 10) {
+                    seconds = "" + 0 + seconds
+                }
+
+                time = hours + ":" + minutes + ":" + seconds + " PM"
+                return time;
+            }
+
+            slider.oninput = function () {
+                timesec = this.value
+
+
+
+                updateUmbra(umbra_features.filter(d => d.properties["UTCSec"] == this.value))
+            }
+
+            var button = d3.select(".button")
+
+            button.on("click", function () {
+                if (state == "Pause") {
+                    button.html(`<i id="pauseplay" class="fa fa-pause"></i>`)
+                    state = "Play"
+                } else {
+                    button.html(`<i id="pauseplay" class="fa fa-play"></i>`)
+                    state = "Pause"
+
+                }
+            })
+
+
+            updateUmbra(umbra_features.filter(d => d.properties["UTCSec"] == timesec))
+
+
+
+
+            var umbra = g.selectAll(".umbra")
+
+
+            // Function to place svg based on zoom
+            const onZoom = () => umbra.attr('d', pathCreator)
+            // initialize positioning
+            onZoom()
+            // reset whenever map is moved
+            map.on('zoomend', onZoom)
+
+            var clock = L.control({ position: "topright" })
+
+            clock.onAdd = function (map) {
+                var div = L.DomUtil.create('div', 'clock')
+                div.innerHTML = convertTime(timesec)
+                return div
+            }
+
+            clock.addTo(map)
+
+
+            var logo_holder = L.control({position: "bottomleft"})
+
+            logo_holder.onAdd = function(map) {
+                var logo = L.DomUtil.create("div", "logo")
+                logo.innerHTML = `<img src="vt_logo_light.png" id="logo_img" height="100px">`
+                return logo
+            }
+
+            logo_holder.addTo(map)
+
+
+
+
+
+        }
+        createMap()
+    </script>
+    <div class="slidecontainer">
+        <button class="button" id="playbutton"><i id="pauseplay" class="fa fa-play"></i>
+        </button><input value="69860" type="range" min="69860" max="70380" step="10" class="slider" id="timeslider">
+    </div>
+    <div id="leaflet" style="min-height: 500px; max-height: 800px; width: 100%"></div>
+    <div style="font-size: 14px; color:rgb(118, 118, 118)">
+        Click on a shaded area to see how long the total eclipse will last. Move the slider or press the play button to
+        see where the total eclipse will be at a given time. Use the search button to locate a town or city.</div>
+
+
+
+
+
+
+
+    <script>
+        window.onload = function () {
+            pymChild = new pym.Child({});
+            pym.Child({ polling: 500 });
+        };
+    </script>
+
+
+</body>
+
+</html>
